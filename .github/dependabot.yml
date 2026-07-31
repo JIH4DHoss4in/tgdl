@@ -1,0 +1,32 @@
+version: 2
+
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - dependencies
+      - maintenance
+    groups:
+      rust-dependencies:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    # dtolnay/rust-toolchain uses its action ref as the Rust toolchain selector.
+    # Dependabot must not rewrite 1.96.0 as though it were an action version.
+    ignore:
+      - dependency-name: dtolnay/rust-toolchain
+    labels:
+      - dependencies
+      - maintenance
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5

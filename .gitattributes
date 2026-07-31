@@ -1,0 +1,17 @@
+* text=auto
+
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+LICENSE text eol=lf
+*.rs text eol=lf
+*.toml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+Cargo.lock text eol=lf
+
+*.exe binary
+*.zip binary
+*.gz binary
+*.sqlite binary

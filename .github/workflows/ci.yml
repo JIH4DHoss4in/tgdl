@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Format and lint
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Check source publication set
+        shell: bash
+        run: |
+          set -euo pipefail
+          ignored="$(git ls-files -ci --exclude-standard)"
+          if [[ -n "$ignored" ]]; then
+            printf 'Tracked files are excluded by .gitignore:\n%s\n' "$ignored" >&2
+            exit 1
+          fi
+          git diff --check
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          components: clippy,rustfmt
+      - uses: Swatinem/rust-cache@v2.9.1
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+
+  test:
+    name: Test (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            os: ubuntu-22.04
+          - name: Windows x64
+            os: windows-latest
+          - name: macOS Apple Silicon
+            os: macos-15
+          - name: macOS Intel
+            os: macos-15-intel
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.96.0
+      - uses: Swatinem/rust-cache@v2.9.1
+      - run: cargo test --locked --all-targets
+      - run: cargo build --locked --release

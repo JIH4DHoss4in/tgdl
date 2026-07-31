@@ -1,0 +1,61 @@
+# Rust build output and release packages
+**/target/
+/dist/
+**/*.rs.bk
+*.d
+*.dll
+*.dylib
+*.exe
+*.exp
+*.ilk
+*.lib
+*.obj
+*.pdb
+*.rlib
+*.rmeta
+*.so
+*.tar
+*.tar.gz
+*.tar.zst
+*.tgz
+*.zip
+SHA256SUMS
+
+# Runtime state and Telegram authorization material
+*.session
+*.session-journal
+*.sqlite
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
+*.part
+/tdata/
+/sessions/
+/config.toml
+
+# Local secrets, diagnostics, and temporary files
+.env*
+!.env.example
+*.log
+*.stackdump
+*.tmp
+
+# Cargo registry extraction metadata retained only in local vendor copies
+/vendor/**/.cargo-ok
+/vendor/**/.cargo_vcs_info.json
+/vendor/**/Cargo.toml.orig
+
+# Test and coverage output
+/.coverage/
+/coverage/
+lcov.info
+*.profraw
+
+# Editor and operating-system files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.bak
+*.swp
+*~

@@ -1,0 +1,98 @@
+name: Bug report
+description: Report a reproducible problem in tgdl
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Never attach real configuration, session, tdata, Telethon, or state-database files. Redact API hashes, phone numbers, proxy credentials, and private source identifiers.
+  - type: input
+    id: version
+    attributes:
+      label: tgdl version
+      description: Release tag, or commit hash for a source build.
+      placeholder: v0.1.0
+    validations:
+      required: true
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Linux
+        - macOS Apple Silicon
+        - macOS Intel
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation
+      options:
+        - GitHub release
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include the expected result and the actual result.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. Start tgdl
+        2. Select ...
+        3. Forward ...
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Redacted logs
+      description: Paste only the lines needed to understand the failure. Remove all secrets and private identifiers.
+      render: text
+  - type: dropdown
+    id: source
+    attributes:
+      label: Source type
+      options:
+        - Public channel or group
+        - Private channel or group
+        - Multiple source types
+        - Not source-related
+    validations:
+      required: true
+  - type: dropdown
+    id: route
+    attributes:
+      label: Network route
+      options:
+        - Direct
+        - SOCKS5 proxy
+        - HTTP proxy
+        - Multiple account-specific routes
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Include file size/type, history or live-monitor mode, and whether a restart reproduces the problem when relevant.
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety checks
+      options:
+        - label: I removed credentials, session data, phone numbers, and private source identifiers.
+          required: true
+        - label: I am using accounts and content I am authorized to access.
+          required: true

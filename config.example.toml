@@ -1,0 +1,45 @@
+api_id = 123456
+api_hash = "replace-with-your-api-hash"
+output_dir = "D:/Telegram Downloads"
+# Optional canonical HTTP or SOCKS5 proxy. Interactive setup accepts IP:port
+# or IP:port:username:password. TGDL_PROXY_URL overrides this value.
+# proxy_url = "socks5://127.0.0.1:1080"
+monitor_primary = "premium-main"
+# false keeps the active monitor out of download scheduling.
+monitor_account_downloads = false
+max_active_files = 2
+max_download_lanes_per_account = 8
+# Optional second full-file SHA-256 pass. Disabled for immediate finalization.
+verify_file_hashes = false
+
+# Optional media filters. Omit the table or leave extensions empty to accept
+# all extensions. Sizes are inclusive byte counts.
+# [media_filter]
+# extensions = ["rar", "zip", "tar.gz", "mp4"]
+# min_size = 1048576
+# max_size = 10737418240
+
+[[sources]]
+title = "Public drop channel"
+access = "public"
+peer_kind = "channel"
+username = "public_drop_channel"
+
+[[sources]]
+title = "Private project group"
+access = "private"
+peer_kind = "group"
+# The console records this when selecting one of the monitor's joined dialogs.
+peer_id = -1001234567890
+
+[[accounts]]
+name = "premium-main"
+enabled = true
+monitor_priority = 1
+
+[[accounts]]
+name = "backup-normal"
+enabled = true
+monitor_priority = 2
+# Optional per-account override; this takes priority over the global proxy.
+# proxy_url = "http://username:password@proxy.example.com:8080"

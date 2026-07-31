@@ -1,0 +1,56 @@
+[package]
+name = "tgdl"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.96"
+description = "Fast, resumable multi-account Telegram media downloader for Windows, Linux, and macOS"
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/JIH4DHoss4in/tgdl"
+keywords = ["telegram", "downloader", "mtproto", "cli"]
+categories = ["command-line-utilities", "network-programming"]
+publish = false
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[dependencies]
+anyhow = "1.0.100"
+chrono = { version = "0.4.42", features = ["serde"] }
+console = "0.16.4"
+crossterm = { version = "0.29.0", default-features = false, features = ["events", "windows"] }
+directories = "6.0.0"
+fs2 = "0.4.3"
+futures-util = "0.3.32"
+grammers-client = "=0.10.0"
+grammers-mtsender = { version = "=0.10.0", features = ["proxy"] }
+grammers-session = "=0.10.0"
+grammers-tl-types = "=0.10.0"
+hermes-tdata = "=0.1.1"
+libsql = { version = "=0.9.30", default-features = false, features = ["core"] }
+mime_guess = "2.0.5"
+rpassword = "7.5.4"
+serde = { version = "1.0.228", features = ["derive"] }
+sha2 = "0.11"
+tempfile = "3.23.0"
+tokio = { version = "1.52.0", features = ["fs", "io-util", "macros", "rt-multi-thread", "signal", "sync", "time"] }
+toml = "1.0.6"
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.22", features = ["env-filter", "fmt"] }
+url = "2.5.7"
+
+[patch.crates-io]
+# core2 0.4.0 was yanked after hermes-tdata 0.1.1 was published. Pin the exact
+# source revision recorded in that release so clean builds remain reproducible.
+core2 = { git = "https://github.com/bbqsrc/core2", rev = "545e84bcb0f235b12e21351e0c69767958efe2a7" }
+# grammers-mtproto 0.10 rejects valid full-size upload.getFile responses using
+# its smaller outgoing-container limit. Keep outgoing limits unchanged while
+# accepting a bounded 1 MiB media response.
+grammers-mtproto = { path = "vendor/grammers-mtproto" }
+# Add HTTP CONNECT alongside the upstream SOCKS5 transport while keeping the
+# public grammers 0.10 API unchanged.
+grammers-mtsender = { path = "vendor/grammers-mtsender" }
+
+[profile.release]
+lto = "thin"
+strip = true

@@ -1,0 +1,186 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: "1"
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Verify release tag and source
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          components: clippy,rustfmt
+      - uses: Swatinem/rust-cache@v2.9.1
+      - name: Check source publication set
+        shell: bash
+        run: |
+          set -euo pipefail
+          ignored="$(git ls-files -ci --exclude-standard)"
+          if [[ -n "$ignored" ]]; then
+            printf 'Tracked files are excluded by .gitignore:\n%s\n' "$ignored" >&2
+            exit 1
+          fi
+          git diff --check
+      - name: Match tag to Cargo package version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          cargo_version="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -n 1)"
+          if [[ "$GITHUB_REF_NAME" != "v${cargo_version}" ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${cargo_version}." >&2
+            exit 1
+          fi
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Tag ${GITHUB_REF_NAME} is not a supported semantic version." >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --locked --all-targets -- -D warnings
+      - run: cargo test --locked --all-targets
+
+  build:
+    name: Build ${{ matrix.label }}
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Linux x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            asset: linux-x86_64
+            archive: tar.gz
+          - label: Windows x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset: windows-x86_64
+            archive: zip
+          - label: macOS Apple Silicon
+            os: macos-15
+            target: aarch64-apple-darwin
+            asset: macos-aarch64
+            archive: tar.gz
+          - label: macOS Intel
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            asset: macos-x86_64
+            archive: tar.gz
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@1.96.0
+        with:
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2.9.1
+        with:
+          key: ${{ matrix.target }}
+      - name: Test native target
+        run: cargo test --locked --all-targets --target ${{ matrix.target }}
+      - name: Build optimized binary
+        run: cargo build --locked --release --target ${{ matrix.target }}
+      - name: Package Unix release
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          TARGET: ${{ matrix.target }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          set -euo pipefail
+          package="tgdl-${VERSION}-${ASSET}"
+          mkdir -p "dist/${package}"
+          cp "target/${TARGET}/release/tgdl" "dist/${package}/"
+          cp README.md CHANGELOG.md LICENSE SECURITY.md THIRD_PARTY_LICENSES.md config.example.toml \
+            "dist/${package}/"
+          tar -C dist -czf "dist/${package}.tar.gz" "${package}"
+      - name: Package Windows release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.verify.outputs.version }}
+          TARGET: ${{ matrix.target }}
+          ASSET: ${{ matrix.asset }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          $package = "tgdl-$env:VERSION-$env:ASSET"
+          $directory = Join-Path "dist" $package
+          New-Item -ItemType Directory -Path $directory -Force | Out-Null
+          Copy-Item "target/$env:TARGET/release/tgdl.exe" $directory
+          Copy-Item README.md,CHANGELOG.md,LICENSE,SECURITY.md,THIRD_PARTY_LICENSES.md,config.example.toml $directory
+          Compress-Archive -Path $directory -DestinationPath "dist/$package.zip"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ matrix.asset }}
+          path: dist/*.${{ matrix.archive }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+  publish:
+    name: Publish GitHub Release
+    needs: [verify, build]
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Create SHA-256 manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          archive_count="$(find . -maxdepth 1 -type f \( -name 'tgdl-*.zip' -o -name 'tgdl-*.tar.gz' \) | wc -l)"
+          if [[ "$archive_count" -ne 4 ]]; then
+            echo "Expected four release archives, found $archive_count." >&2
+            exit 1
+          fi
+          sha256sum tgdl-*.zip tgdl-*.tar.gz > SHA256SUMS
+      - name: Publish release and assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ needs.verify.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          release_flags=()
+          if [[ "$VERSION" == *-* ]]; then
+            release_flags+=(--prerelease)
+          fi
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --verify-tag \
+            --generate-notes \
+            --title "tgdl $GITHUB_REF_NAME" \
+            "${release_flags[@]}"
