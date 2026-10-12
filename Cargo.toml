@@ -1,6 +1,6 @@
 [package]
 name = "tgdl"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.96"
 description = "Fast, resumable multi-account Telegram media downloader for Windows, Linux, and macOS"
@@ -50,6 +50,9 @@ grammers-mtproto = { path = "vendor/grammers-mtproto" }
 # Add HTTP CONNECT alongside the upstream SOCKS5 transport while keeping the
 # public grammers 0.10 API unchanged.
 grammers-mtsender = { path = "vendor/grammers-mtsender" }
+# Accept Telegram's newer channel#d49f34c6 and user#b1b8cc83 constructors alongside
+# previous layer constructor IDs.
+grammers-tl-types = { path = "vendor/grammers-tl-types" }
 
 [profile.release]
 lto = "thin"

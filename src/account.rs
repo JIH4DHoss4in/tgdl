@@ -156,13 +156,26 @@ impl AccountRuntime {
                     .as_deref()
                     .map(normalize_channel)
                     .context("public source is missing its username")?;
-                let peer = self
-                    .client
-                    .resolve_username(&username)
-                    .await?
-                    .with_context(|| {
-                        format!("public channel or group @{username} was not found")
-                    })?;
+                let peer = match self.client.resolve_username(&username).await? {
+                    Some(peer) => peer,
+                    None if source.peer_id.is_some() => {
+                        let expected = source.peer_id.unwrap();
+                        let mut dialogs = self.client.iter_dialogs();
+                        let mut found = None;
+                        while let Some(dialog) = dialogs.next().await? {
+                            if dialog.peer_id().bot_api_dialog_id() == Some(expected)
+                                && matches!(dialog.peer(), Peer::Group(_) | Peer::Channel(_))
+                            {
+                                found = Some(dialog.peer().clone());
+                                break;
+                            }
+                        }
+                        found.with_context(|| {
+                            format!("public channel or group @{username} was not found")
+                        })?
+                    }
+                    None => bail!("public channel or group @{username} was not found"),
+                };
                 resolved_from_peer(&peer, SourceAccess::Public).await?
             }
             SourceAccess::Private => {

@@ -894,8 +894,6 @@ dependencies = [
 [[package]]
 name = "grammers-tl-types"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "67d450e2f2588af535fe85a17b9a6df8338794ee8ad6bcb1b97d61a14d472fc5"
 dependencies = [
  "grammers-tl-gen 0.10.0",
  "grammers-tl-parser",
@@ -2323,7 +2321,7 @@ dependencies = [
 
 [[package]]
 name = "tgdl"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "chrono",

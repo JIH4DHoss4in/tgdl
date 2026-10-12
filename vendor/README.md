@@ -1,11 +1,12 @@
 # Vendored grammers patches
 
-`tgdl` requires two narrowly scoped changes to `grammers` 0.10.0. The root `Cargo.toml` selects these local source copies through `[patch.crates-io]`.
+`tgdl` requires three narrowly scoped changes to `grammers` 0.10.0. The root `Cargo.toml` selects these local source copies through `[patch.crates-io]`.
 
 | Crate | Local modification |
 | --- | --- |
 | `grammers-mtproto` | Accept bounded incoming MTProto responses large enough to contain a complete 1 MiB `upload.getFile` result, and return an error instead of panicking when a declared length is malformed. |
 | `grammers-mtsender` | Add HTTP CONNECT transport, optional Basic authentication, safe userinfo decoding, credential-redacted errors, fallible DNS initialization, bounded proxy response headers, and focused tests. |
+| `grammers-tl-types` | Accept Telegram Layer 228+ constructors `channel#d49f34c6` and `user#b1b8cc83` alongside legacy constructor IDs, consuming trailing `linked_community_id` fields while maintaining 0.10.0 struct compatibility. |
 
 The patches do not change SOCKS5 behavior or outgoing MTProto container limits.
 
