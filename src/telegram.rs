@@ -427,6 +427,7 @@ pub fn classify_invocation(error: InvocationError) -> FetchError {
         InvocationError::Rpc(error) if (500..600).contains(&error.code.unsigned_abs()) => {
             FetchError::Transient(error.to_string())
         }
+        InvocationError::Deserialize(error) => FetchError::Transient(error.to_string()),
         other => FetchError::Permanent(other.to_string()),
     }
 }
@@ -589,5 +590,181 @@ mod tests {
         let stored = session.dc_option(2).unwrap().unwrap();
         assert_eq!(stored.ipv4, transfer_dc.ipv4);
         assert_eq!(stored.auth_key, Some([7; 256]));
+    }
+
+    #[test]
+    fn deserializes_layer_228_channel_and_user_constructors() {
+        use grammers_tl_types::{Cursor, Deserializable, Serializable, enums, types};
+
+        assert_eq!(grammers_tl_types::name_for_id(0xd49f34c6), "channel");
+        assert_eq!(grammers_tl_types::name_for_id(0xb1b8cc83), "user");
+
+        // 1. Channel without flags2.20
+        let channel = types::Channel {
+            creator: false,
+            left: false,
+            broadcast: true,
+            verified: false,
+            megagroup: false,
+            restricted: false,
+            signatures: false,
+            min: false,
+            scam: false,
+            has_link: false,
+            has_geo: false,
+            slowmode_enabled: false,
+            call_active: false,
+            call_not_empty: false,
+            fake: false,
+            gigagroup: false,
+            noforwards: false,
+            join_to_send: false,
+            join_request: false,
+            forum: false,
+            stories_hidden: false,
+            stories_hidden_min: false,
+            stories_unavailable: false,
+            signature_profiles: false,
+            autotranslation: false,
+            broadcast_messages_allowed: false,
+            monoforum: false,
+            forum_tabs: false,
+            id: 123456789,
+            access_hash: Some(987654321),
+            title: "Test Channel".to_string(),
+            username: Some("test_channel".to_string()),
+            photo: enums::ChatPhoto::Empty,
+            date: 1700000000,
+            restriction_reason: None,
+            admin_rights: None,
+            banned_rights: None,
+            default_banned_rights: None,
+            participants_count: None,
+            usernames: None,
+            stories_max_id: None,
+            color: None,
+            profile_color: None,
+            emoji_status: None,
+            level: None,
+            subscription_until_date: None,
+            bot_verification_icon: None,
+            send_paid_messages_stars: None,
+            linked_monoforum_id: None,
+        };
+
+        let mut channel_buf = Vec::new();
+        channel.serialize(&mut channel_buf);
+
+        let mut chat_buf = 0xd49f34c6u32.to_le_bytes().to_vec();
+        chat_buf.extend_from_slice(&channel_buf);
+
+        let mut cursor = Cursor::from_slice(&chat_buf);
+        let chat =
+            enums::Chat::deserialize(&mut cursor).expect("failed to deserialize layer 228 channel");
+        match chat {
+            enums::Chat::Channel(c) => {
+                assert_eq!(c.id, 123456789);
+                assert_eq!(c.title, "Test Channel");
+            }
+            _ => panic!("expected Channel variant"),
+        }
+
+        // 2. Channel with flags2.20 set (linked_community_id)
+        let mut chat_buf_with_extra = 0xd49f34c6u32.to_le_bytes().to_vec();
+        let mut channel_buf_with_extra = channel_buf.clone();
+        // flags is bytes 0..4, flags2 is bytes 4..8
+        let flags2 = u32::from_le_bytes(channel_buf_with_extra[4..8].try_into().unwrap());
+        let flags2_with_bit20 = flags2 | (1 << 20);
+        channel_buf_with_extra[4..8].copy_from_slice(&flags2_with_bit20.to_le_bytes());
+        // append linked_community_id: i64
+        channel_buf_with_extra.extend_from_slice(&424242i64.to_le_bytes());
+        chat_buf_with_extra.extend_from_slice(&channel_buf_with_extra);
+
+        let mut cursor_extra = Cursor::from_slice(&chat_buf_with_extra);
+        let chat_extra = enums::Chat::deserialize(&mut cursor_extra)
+            .expect("failed to deserialize layer 228 channel with linked_community_id");
+        match chat_extra {
+            enums::Chat::Channel(c) => {
+                assert_eq!(c.id, 123456789);
+                assert_eq!(c.title, "Test Channel");
+            }
+            _ => panic!("expected Channel variant"),
+        }
+
+        // 3. User with flags2.21 set (linked_community_id)
+        let user = types::User {
+            is_self: false,
+            contact: false,
+            mutual_contact: false,
+            deleted: false,
+            bot: false,
+            bot_chat_history: false,
+            bot_nochats: false,
+            verified: false,
+            restricted: false,
+            min: false,
+            bot_inline_geo: false,
+            support: false,
+            scam: false,
+            apply_min_photo: false,
+            fake: false,
+            bot_attach_menu: false,
+            premium: false,
+            attach_menu_enabled: false,
+            bot_can_edit: false,
+            close_friend: false,
+            stories_hidden: false,
+            stories_unavailable: false,
+            contact_require_premium: false,
+            bot_business: false,
+            bot_has_main_app: false,
+            bot_forum_view: false,
+            bot_forum_can_manage_topics: false,
+            bot_can_manage_bots: false,
+            bot_guestchat: false,
+            bot_guard: false,
+            id: 999888,
+            access_hash: Some(111222),
+            first_name: Some("Alice".to_string()),
+            last_name: None,
+            username: Some("alice".to_string()),
+            phone: None,
+            photo: None,
+            status: None,
+            bot_info_version: None,
+            restriction_reason: None,
+            bot_inline_placeholder: None,
+            lang_code: None,
+            emoji_status: None,
+            usernames: None,
+            stories_max_id: None,
+            color: None,
+            profile_color: None,
+            bot_active_users: None,
+            bot_verification_icon: None,
+            send_paid_messages_stars: None,
+        };
+
+        let mut user_buf = Vec::new();
+        user.serialize(&mut user_buf);
+
+        let mut user_full_buf = 0xb1b8cc83u32.to_le_bytes().to_vec();
+        // flags is bytes 0..4, flags2 is bytes 4..8
+        let user_flags2 = u32::from_le_bytes(user_buf[4..8].try_into().unwrap());
+        let user_flags2_with_bit21 = user_flags2 | (1 << 21);
+        user_buf[4..8].copy_from_slice(&user_flags2_with_bit21.to_le_bytes());
+        user_buf.extend_from_slice(&777888i64.to_le_bytes());
+        user_full_buf.extend_from_slice(&user_buf);
+
+        let mut user_cursor = Cursor::from_slice(&user_full_buf);
+        let parsed_user = enums::User::deserialize(&mut user_cursor)
+            .expect("failed to deserialize layer 228 user with linked_community_id");
+        match parsed_user {
+            enums::User::User(u) => {
+                assert_eq!(u.id, 999888);
+                assert_eq!(u.first_name, Some("Alice".to_string()));
+            }
+            _ => panic!("expected User variant"),
+        }
     }
 }
